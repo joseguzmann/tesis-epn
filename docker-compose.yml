@@ -23,6 +23,8 @@ services:
       --collation-server=utf8mb4_unicode_ci
     volumes:
       - db_data:/var/lib/mysql
+    networks:
+      - moodle_network
 
   # 2) Moodle (Bitnami)
   moodle:
@@ -51,6 +53,14 @@ services:
       - moodle_data:/bitnami/moodledata
       - moodle_install:/bitnami/moodle
       - moodle_apache_conf:/bitnami/apache
+    networks:
+      - moodle_network
+    # Configurar logging para que LogWhisperer pueda leerlos
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
 
   # 3) Netdata con IA
   netdata:
@@ -80,6 +90,14 @@ services:
     volumes:
       - ollama_models:/root/.ollama
     restart: unless-stopped
+    networks:
+      - moodle_network
+    # Configurar logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "2"
 
   # 5) LogWhisperer (resumen de logs con LLM)
   logwhisperer:
@@ -87,12 +105,30 @@ services:
     container_name: logwhisperer
     depends_on:
       - ollama
+      - moodle
     volumes:
       - log_reports:/reports
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Montar los logs de Docker para acceso directo
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - LOG_LEVEL=DEBUG
+    networks:
+      - moodle_network
     # entrypoint al script que espera Ollama y ejecuta LogWhisperer
     entrypoint: ["/entrypoint.sh"]
     restart: unless-stopped
+    # Configurar logging para LogWhisperer mismo
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "2"
+
+networks:
+  moodle_network:
+    driver: bridge
 
 volumes:
   db_data:
