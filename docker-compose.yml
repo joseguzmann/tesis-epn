@@ -1,0 +1,105 @@
+version: "3.9"
+
+services:
+  # 1) Base de datos MariaDB
+  db:
+    image: mariadb:10.11
+    container_name: moodle-db
+    restart: unless-stopped
+    env_file: .env
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      retries: 5
+    environment:
+      MARIADB_DATABASE: ${MOODLE_DB_NAME}
+      MARIADB_USER:     ${MOODLE_DB_USER}
+      MARIADB_PASSWORD: ${MOODLE_DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    command: >
+      --transaction-isolation=READ-COMMITTED
+      --innodb_buffer_pool_size=256M
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+
+  # 2) Moodle (Bitnami)
+  moodle:
+    image: bitnami/moodle:latest
+    container_name: moodle-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      ALLOW_EMPTY_PASSWORD: "no"
+      MOODLE_DATABASE_TYPE: mariadb
+      MOODLE_DATABASE_HOST: db
+      MOODLE_DATABASE_PORT_NUMBER: 3306
+      MOODLE_DATABASE_USER: ${MOODLE_DB_USER}
+      MOODLE_DATABASE_PASSWORD: ${MOODLE_DB_PASSWORD}
+      MOODLE_DATABASE_NAME: ${MOODLE_DB_NAME}
+      MOODLE_USERNAME: ${MOODLE_USERNAME}
+      MOODLE_PASSWORD: ${MOODLE_PASSWORD}
+      MOODLE_SITE_NAME: ${MOODLE_SITE_NAME}
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    volumes:
+      - moodle_data:/bitnami/moodledata
+      - moodle_install:/bitnami/moodle
+      - moodle_apache_conf:/bitnami/apache
+
+  # 3) Netdata con IA
+  netdata:
+    image: netdata/netdata:stable
+    container_name: netdata
+    network_mode: host
+    pid: host
+    cap_add: [SYS_PTRACE]
+    security_opt: [apparmor:unconfined]
+    environment:
+      - NETDATA_ML=yes
+    volumes:
+      - netdata_lib:/var/lib/netdata
+      - netdata_cache:/var/cache/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    restart: unless-stopped
+
+  # 4) Ollama (servidor LLM local)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    command: ["serve"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+  # 5) LogWhisperer (resumen de logs con LLM)
+  logwhisperer:
+    build: ./logwhisperer-docker
+    container_name: logwhisperer
+    depends_on:
+      - ollama
+    volumes:
+      - log_reports:/reports
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # entrypoint al script que espera Ollama y ejecuta LogWhisperer
+    entrypoint: ["/entrypoint.sh"]
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  moodle_data:
+  moodle_install:
+  moodle_apache_conf:
+  netdata_lib:
+  netdata_cache:
+  ollama_models:
+  log_reports:
