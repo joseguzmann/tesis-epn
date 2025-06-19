@@ -1,121 +1,126 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 echo "🚀 Iniciando LogWhisperer..."
 
-# Variables de configuración
-OLLAMA_HOST=${OLLAMA_HOST:-"http://ollama:11434"}
+: "${OLLAMA_HOST:=http://ollama:11434}"
+: "${MODEL:=phi3:mini}"
+: "${CONTAINER_NAMES:=moodle-app}"
+: "${INTERVAL:=60}"
+
 MAX_RETRIES=30
-RETRY_COUNT=0
+COUNT=0
 
-# Función para verificar si Ollama está disponible
-check_ollama() {
-    curl -s -f "${OLLAMA_HOST}/api/tags" > /dev/null 2>&1
+# ---------- Funciones auxiliares ----------
+check_ollama() { curl -s -f "${OLLAMA_HOST}/api/tags" >/dev/null 2>&1; }
+
+model_exists() {
+  local name="$1"
+  curl -s "${OLLAMA_HOST}/api/tags" | jq -r '.models[].name' | grep -q "^${name}$"
 }
 
-# Función para verificar si el modelo existe
-check_model() {
-    local model_name="$1"
-    curl -s "${OLLAMA_HOST}/api/tags" | jq -r '.models[].name' | grep -q "^${model_name}$"
+pull_model() {
+  local name="$1"
+  echo "📦 Descargando modelo ${name}..."
+  curl -s -X POST "${OLLAMA_HOST}/api/pull" \
+       -H "Content-Type: application/json" \
+       -d "{\"name\":\"${name}\"}"
 }
 
-# Función para descargar modelo si no existe
 ensure_model() {
-    local model_name="$1"
-    if ! check_model "$model_name"; then
-        echo "📦 Descargando modelo $model_name (esto puede tomar varios minutos)..."
-        
-        # Usar ollama directamente en lugar de curl para mejor manejo
-        docker exec ollama ollama pull "$model_name" || {
-            echo "❌ Error al descargar el modelo $model_name con ollama"
-            echo "🔄 Intentando con curl..."
-            
-            # Fallback a curl con timeout más largo
-            timeout 1800 curl -X POST "${OLLAMA_HOST}/api/pull" \
-                 -H "Content-Type: application/json" \
-                 -d "{\"name\": \"$model_name\"}" \
-                 --silent --show-error || {
-                echo "❌ Error al descargar el modelo $model_name"
-                return 1
-            }
-        }
-        
-        # Verificar que el modelo se descargó correctamente
-        sleep 5
-        if check_model "$model_name"; then
-            echo "✅ Modelo $model_name descargado y verificado correctamente"
-        else
-            echo "❌ Error: El modelo $model_name no se encuentra disponible después de la descarga"
-            return 1
-        fi
-    else
-        echo "✅ Modelo $model_name ya disponible"
-    fi
-}
-
-# 1) Esperar a que Ollama esté disponible
-echo "⏳ Esperando a que Ollama esté disponible en $OLLAMA_HOST..."
-while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if check_ollama; then
-        echo "✅ Ollama está disponible"
-        break
-    fi
-    
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-    echo "⏳ Intento $RETRY_COUNT/$MAX_RETRIES - Esperando a Ollama..."
+  local name="$1"
+  if ! model_exists "$name"; then
+    pull_model "$name"
     sleep 5
-done
-
-if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-    echo "❌ Error: No se pudo conectar a Ollama después de $MAX_RETRIES intentos"
-    exit 1
-fi
-
-# 2) Asegurar que el modelo esté disponible
-MODEL_NAME="phi3:mini"
-echo "🤖 Verificando modelo $MODEL_NAME..."
-ensure_model "$MODEL_NAME" || {
-    echo "⚠️  Error con phi3:mini, probando con modelo más pequeño..."
-    MODEL_NAME="phi3:3.8b"
-    ensure_model "$MODEL_NAME" || {
-        echo "⚠️  Usando modelo base más pequeño..."
-        MODEL_NAME="llama3.2:1b"
-        ensure_model "$MODEL_NAME" || {
-            echo "❌ No se pudo descargar ningún modelo compatible"
-            exit 1
-        }
-    }
+    model_exists "$name" || { echo "❌ Falló la descarga de $name"; return 1; }
+  fi
+  echo "✅ Modelo ${name} listo"
 }
 
-# 3) Verificar que el contenedor objetivo existe
-echo "🔍 Verificando contenedor moodle-app..."
-if ! docker ps --format "table {{.Names}}" | grep -q "moodle-app"; then
-    echo "⚠️  Contenedor moodle-app no encontrado, esperando..."
-    sleep 10
-fi
+check_docker_daemon() {
+python3 - <<'PY'
+import sys, docker, os
+try:
+    client = docker.DockerClient(base_url='unix:///var/run/docker.sock')
+    client.ping()
+    print("✅ Docker accesible desde el contenedor")
+except Exception as e:
+    print(f"❌ No se pudo acceder al daemon de Docker: {e}")
+    sys.exit(1)
+PY
+}
 
-# 4) Ejecutar LogWhisperer con configuración mejorada
-echo "🎯 Iniciando LogWhisperer para monitorear moodle-app con modelo $MODEL_NAME..."
+# ---------- 1) Esperar Ollama ----------
+echo "⏳ Esperando a Ollama..."
+until check_ollama || [ "$COUNT" -eq "$MAX_RETRIES" ]; do
+  COUNT=$((COUNT+1))
+  echo "  → Intento ${COUNT}/${MAX_RETRIES}"
+  sleep 3
+done
+[ "$COUNT" -eq "$MAX_RETRIES" ] && { echo "❌ Ollama no responde"; exit 1; }
 
-# Crear directorio de reportes si no existe
-mkdir -p /reports
+# ---------- 2) Asegurar modelo ----------
+ensure_model "$MODEL" || { echo "⚠️  Probando con llama3.2:1b"; MODEL="llama3.2:1b"; ensure_model "$MODEL" || exit 1; }
 
-# Verificar que podemos leer logs del contenedor
-echo "🔍 Verificando acceso a logs..."
-if docker logs moodle-app --tail 5 >/dev/null 2>&1; then
-    echo "✅ Acceso a logs de moodle-app confirmado"
-else
-    echo "⚠️  Problema accediendo a logs de moodle-app"
-fi
+# ---------- 3) Verificar acceso a Docker ----------
+check_docker_daemon
 
-# Ejecutar LogWhisperer con configuración optimizada
-echo "🚀 Ejecutando LogWhisperer..."
-exec python3 logwhisperer.py \
-  --source docker \
-  --container moodle-app \
-  --follow \
-  --interval 10 \
-  --model "$MODEL_NAME" \
-  --ollama-host "$OLLAMA_HOST" \
-  --entries 50 \
-  --timeout 30 2>&1 | tee /reports/logwhisperer.log
+# ---------- 4) Generar wrapper dinámico ----------
+cat >/run_logwhisperer.py <<'PY'
+#!/usr/bin/env python3
+import os, time, subprocess, docker
+from datetime import datetime
+
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
+MODEL        = os.getenv("MODEL", "phi3:mini")
+INTERVAL     = int(os.getenv("INTERVAL", "60"))
+CONTAINERS   = [c.strip() for c in os.getenv("CONTAINER_NAMES","moodle-app").split(",")]
+
+client = docker.DockerClient(base_url="unix:///var/run/docker.sock")
+
+def running(container_name):
+    try:
+        return client.containers.get(container_name).status == "running"
+    except docker.errors.NotFound:
+        return False
+
+def analyse(container_name):
+    cmd = [
+        "python3", "/opt/logwhisperer/logwhisperer.py",
+        "--source", "docker",
+        "--container", container_name,
+        "--model", MODEL,
+        "--ollama-host", OLLAMA_HOST,
+        "--entries", "100",
+        "--timeout", "30",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    outfile = f"/reports/summary_{container_name}_{ts}.txt"
+    with open(outfile, "w") as f:
+        f.write(result.stdout)
+        if result.stderr:
+            f.write("\n--- STDERR ---\n")
+            f.write(result.stderr)
+    print(f"📝 {outfile} generado")
+
+def main():
+    print(f"🎯 Monitoreando contenedores: {', '.join(CONTAINERS)} cada {INTERVAL}s")
+    while True:
+        for name in CONTAINERS:
+            if running(name):
+                print(f"📊 Analizando {name} ...")
+                analyse(name)
+            else:
+                print(f"⚠️  {name} no está en ejecución")
+        print(f"💤 Esperando {INTERVAL}s…")
+        time.sleep(INTERVAL)
+
+if __name__ == "__main__":
+    main()
+PY
+
+chmod +x /run_logwhisperer.py
+
+echo "✅ Configuración terminada, arrancando LogWhisperer..."
+exec python3 /run_logwhisperer.py

@@ -55,9 +55,8 @@ services:
       - moodle_apache_conf:/bitnami/apache
     networks:
       - moodle_network
-    # Configurar logging para que LogWhisperer pueda leerlos
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "100m"
         max-file: "3"
@@ -92,12 +91,15 @@ services:
     restart: unless-stopped
     networks:
       - moodle_network
-    # Configurar logging
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "50m"
         max-file: "2"
+    environment:
+      - OLLAMA_HOST=http://0.0.0.0:11434
+      - OLLAMA_CONTEXT_LENGTH=4096
+      - OLLAMA_DEBUG=INFO
 
   # 5) LogWhisperer (resumen de logs con LLM)
   logwhisperer:
@@ -108,20 +110,18 @@ services:
       - moodle
     volumes:
       - log_reports:/reports
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      # Montar los logs de Docker para acceso directo
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock   # acceso de lectura-escritura
     environment:
       - OLLAMA_HOST=http://ollama:11434
       - LOG_LEVEL=DEBUG
+      - CONTAINER_NAMES=moodle-app,ollama,db     # ¡ahora analiza varios contenedores!
+      - MODEL=phi3:mini
+      - INTERVAL=60
     networks:
       - moodle_network
-    # entrypoint al script que espera Ollama y ejecuta LogWhisperer
-    entrypoint: ["/entrypoint.sh"]
     restart: unless-stopped
-    # Configurar logging para LogWhisperer mismo
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "50m"
         max-file: "2"

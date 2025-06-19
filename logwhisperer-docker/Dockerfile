@@ -1,28 +1,34 @@
 FROM python:3.11-slim
 
-# Instalar dependencias del sistema
+# 1) Dependencias básicas
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       git \
-      docker.io \
       curl \
-      jq \
+      jq  \
  && rm -rf /var/lib/apt/lists/*
 
-# Clonar LogWhisperer y instalar dependencias
-RUN git clone --depth 1 https://github.com/binary-knight/logwhisperer /opt/logwhisperer \
- && pip install --no-cache-dir -r /opt/logwhisperer/requirements.txt
+# 2) Clonar proyecto LogWhisperer
+RUN git clone --depth 1 https://github.com/binary-knight/logwhisperer /opt/logwhisperer
 
-# Copiar script de entrada mejorado
+# 3) Instalar dependencias de Python
+RUN pip install --no-cache-dir \
+      ollama \
+      docker \
+      requests \
+      pyyaml \
+      rich
+
+# 4) Copiar y dar permisos al entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Crear directorio para reportes
+# 5) Crear directorio para los reportes
 RUN mkdir -p /reports
 
 WORKDIR /opt/logwhisperer
 
-# Variables de entorno por defecto
+ENV PYTHONUNBUFFERED=1
 ENV OLLAMA_HOST=http://ollama:11434
 ENV LOG_LEVEL=INFO
 
