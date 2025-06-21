@@ -28,3 +28,25 @@ echo
 
 echo "7. Verificando permisos del socket Docker:"
 docker exec logwhisperer ls -la /var/run/docker.sock 2>/dev/null || echo "No se puede acceder al socket"
+echo
+
+echo "8. Verificando configuración de LogWhisperer:"
+docker exec logwhisperer cat /opt/logwhisperer/config.yaml 2>/dev/null || echo "No se puede leer config.yaml"
+echo
+
+echo "9. Probando análisis con Ollama directamente:"
+docker exec logwhisperer curl -s -X POST http://ollama:11434/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"model":"phi3:mini","prompt":"Test: Say hello","stream":false}' | jq -r '.response // "No response"' 2>/dev/null || echo "No se puede conectar a Ollama"
+echo
+
+echo "10. Mostrando un reporte reciente completo:"
+LATEST_REPORT=$(docker exec logwhisperer find /reports -name "summary_*.txt" -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | awk '{print $2}')
+if [ -n "$LATEST_REPORT" ]; then
+    echo "Reporte más reciente: $(basename $LATEST_REPORT)"
+    echo "---"
+    docker exec logwhisperer head -50 "$LATEST_REPORT" 2>/dev/null
+    echo "---"
+else
+    echo "No hay reportes disponibles"
+fi

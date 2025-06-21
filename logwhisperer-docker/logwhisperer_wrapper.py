@@ -4,6 +4,7 @@ import time
 import subprocess
 import docker
 import json
+import requests
 from datetime import datetime
 from pathlib import Path
 
@@ -42,6 +43,47 @@ def get_recent_logs(container_name, lines=100):
     except Exception as e:
         return f"Error obteniendo logs: {e}"
 
+def analyze_with_ollama(logs_text, container_name):
+    """Analiza logs directamente con Ollama API"""
+    try:
+        prompt = f"""Analiza los siguientes logs del contenedor {container_name} y proporciona un resumen conciso:
+
+1. Identifica los mensajes más importantes
+2. Detecta errores o advertencias críticas
+3. Resume el estado general del servicio
+4. Sugiere acciones si hay problemas
+
+Logs:
+{logs_text[:4000]}  # Limitar para no sobrecargar el modelo
+
+Proporciona un resumen en español, estructurado y claro."""
+
+        # Llamar a Ollama API directamente
+        response = requests.post(
+            f"{OLLAMA_HOST}/api/generate",
+            json={
+                "model": MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.5,
+                    "max_tokens": 500
+                }
+            },
+            timeout=ANALYSIS_TIMEOUT
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            return result.get("response", "No se pudo obtener análisis")
+        else:
+            return f"Error al analizar con Ollama: {response.status_code}"
+            
+    except requests.exceptions.Timeout:
+        return "Timeout al analizar con Ollama"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
 def analyze_logs(container_name):
     """Analiza los logs de un contenedor"""
     print(f"📊 Analizando {container_name}...")
@@ -50,105 +92,30 @@ def analyze_logs(container_name):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_file = f"/reports/summary_{container_name}_{timestamp}.txt"
     
-    # Método 1: Usar Docker directamente (más confiable)
-    cmd = [
-        "python3", "/opt/logwhisperer/logwhisperer.py",
-        "--source", "docker",
-        "--container", container_name,
-        "--model", MODEL,
-        "--ollama-host", OLLAMA_HOST,
-        "--entries", "100",
-        "--timeout", str(ANALYSIS_TIMEOUT)
-    ]
+    # Obtener logs
+    logs = get_recent_logs(container_name, lines=100)
     
-    try:
-        # Ejecutar desde el directorio de LogWhisperer donde está config.yaml
-        result = subprocess.run(
-            cmd, 
-            capture_output=True, 
-            text=True, 
-            timeout=ANALYSIS_TIMEOUT + 10,
-            cwd="/opt/logwhisperer"  # Ejecutar desde el directorio correcto
-        )
+    # Intentar análisis con Ollama
+    analysis = analyze_with_ollama(logs, container_name)
+    
+    # Guardar reporte
+    with open(report_file, 'w') as f:
+        f.write(f"=== Análisis de logs para {container_name} ===\n")
+        f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+        f.write(f"Estado del contenedor: {get_container_status(container_name)}\n")
+        f.write(f"Modelo usado: {MODEL}\n")
+        f.write("=" * 50 + "\n\n")
         
-        # Buscar el reporte generado
-        report_pattern = f"/opt/logwhisperer/reports/log_summary_*.md"
-        latest_reports = subprocess.run(
-            ["bash", "-c", f"ls -t {report_pattern} 2>/dev/null | head -1"],
-            capture_output=True,
-            text=True
-        )
+        f.write("=== ANÁLISIS ===\n")
+        f.write(analysis)
+        f.write("\n\n")
         
-        latest_report_path = latest_reports.stdout.strip()
-        
-        # Si se generó un reporte, lo movemos
-        if latest_report_path and os.path.exists(latest_report_path):
-            # Leer el contenido del reporte generado
-            with open(latest_report_path, 'r') as f:
-                report_content = f.read()
-            
-            # Guardar en nuestro formato
-            with open(report_file, 'w') as f:
-                f.write(f"=== Análisis de logs para {container_name} ===\n")
-                f.write(f"Timestamp: {datetime.now().isoformat()}\n")
-                f.write(f"Estado del contenedor: {get_container_status(container_name)}\n")
-                f.write(f"Modelo usado: {MODEL}\n")
-                f.write("=" * 50 + "\n\n")
-                f.write(report_content)
-            
-            # Eliminar el reporte original
-            os.remove(latest_report_path)
-            print(f"✅ Reporte guardado: {report_file}")
-            
-        else:
-            # Si no se generó reporte, crear uno con la salida
-            logs = get_recent_logs(container_name)
-            
-            with open(report_file, 'w') as f:
-                f.write(f"=== Análisis de logs para {container_name} ===\n")
-                f.write(f"Timestamp: {datetime.now().isoformat()}\n")
-                f.write(f"Estado del contenedor: {get_container_status(container_name)}\n")
-                f.write(f"Modelo usado: {MODEL}\n")
-                f.write("=" * 50 + "\n\n")
-                
-                if result.stdout and len(result.stdout) > 10:
-                    f.write("=== ANÁLISIS ===\n")
-                    f.write(result.stdout)
-                    f.write("\n\n")
-                elif result.returncode == 0:
-                    f.write("=== ANÁLISIS ===\n")
-                    f.write("Análisis completado pero sin salida detallada.\n\n")
-                
-                if result.stderr:
-                    f.write("=== ERRORES ===\n")
-                    f.write(result.stderr)
-                    f.write("\n\n")
-                
-                f.write("=== LOGS ORIGINALES (últimas 50 líneas) ===\n")
-                f.write("\n".join(logs.split("\n")[-50:]))
-            
-            print(f"📝 Reporte guardado: {report_file}")
-        
-    except subprocess.TimeoutExpired:
-        print(f"⏱️  Timeout analizando {container_name}")
-        logs = get_recent_logs(container_name)
-        
-        with open(report_file, 'w') as f:
-            f.write(f"=== Logs de {container_name} (sin análisis - timeout) ===\n")
-            f.write(f"Timestamp: {datetime.now().isoformat()}\n")
-            f.write(f"Timeout después de {ANALYSIS_TIMEOUT} segundos\n\n")
-            f.write(logs)
-        print(f"📝 Logs guardados sin análisis: {report_file}")
-        
-    except Exception as e:
-        print(f"❌ Error analizando {container_name}: {e}")
-        # Guardar logs sin análisis
-        logs = get_recent_logs(container_name)
-        with open(report_file, 'w') as f:
-            f.write(f"=== Error analizando {container_name} ===\n")
-            f.write(f"Error: {str(e)}\n\n")
-            f.write("=== LOGS ORIGINALES ===\n")
-            f.write(logs)
+        f.write("=== LOGS ORIGINALES (últimas 50 líneas) ===\n")
+        log_lines = logs.split("\n")
+        for line in log_lines[-50:]:
+            f.write(line + "\n")
+    
+    print(f"✅ Reporte guardado: {report_file}")
 
 def list_reports():
     """Lista los reportes generados"""
@@ -168,22 +135,25 @@ def verify_setup():
     # Verificar que config.yaml existe
     if os.path.exists("/opt/logwhisperer/config.yaml"):
         print("✅ config.yaml encontrado")
+        with open("/opt/logwhisperer/config.yaml", 'r') as f:
+            print(f"   Contenido: {f.read()}")
     else:
         print("⚠️  config.yaml no encontrado, usando valores por defecto")
     
     # Verificar conexión a Ollama
     try:
-        import requests
         response = requests.get(f"{OLLAMA_HOST}/api/tags", timeout=5)
         if response.status_code == 200:
             print("✅ Ollama accesible")
+            models = response.json().get('models', [])
+            print(f"   Modelos disponibles: {[m['name'] for m in models]}")
         else:
             print("⚠️  Ollama responde pero con error")
-    except:
-        print("❌ No se puede conectar a Ollama")
+    except Exception as e:
+        print(f"❌ No se puede conectar a Ollama: {e}")
     
-    # Verificar directorio de reportes de LogWhisperer
-    os.makedirs("/opt/logwhisperer/reports", exist_ok=True)
+    # Verificar directorio de reportes
+    os.makedirs("/reports", exist_ok=True)
     print("✅ Directorio de reportes creado")
 
 def main():
@@ -197,15 +167,9 @@ def main():
     # Verificar configuración
     verify_setup()
     
-    # Test inicial
-    print("\n🧪 Probando LogWhisperer...")
-    test_result = subprocess.run(
-        ["python3", "/opt/logwhisperer/logwhisperer.py", "--version"],
-        capture_output=True, text=True,
-        cwd="/opt/logwhisperer"
-    )
-    if test_result.stdout:
-        print(f"LogWhisperer version: {test_result.stdout.strip()}")
+    # Esperar un poco para que todos los servicios estén listos
+    print("\n⏳ Esperando 10 segundos para que los servicios se estabilicen...")
+    time.sleep(10)
     
     while True:
         print(f"\n{'='*60}")
