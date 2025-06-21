@@ -6,7 +6,8 @@ echo "🚀 Iniciando LogWhisperer..."
 : "${OLLAMA_HOST:=http://ollama:11434}"
 : "${MODEL:=phi3:mini}"
 : "${CONTAINER_NAMES:=moodle-app}"
-: "${INTERVAL:=60}"
+: "${INTERVAL:=120}"
+: "${ANALYSIS_TIMEOUT:=90}"
 
 MAX_RETRIES=30
 COUNT=0
@@ -24,7 +25,9 @@ pull_model() {
   echo "📦 Descargando modelo ${name}..."
   curl -s -X POST "${OLLAMA_HOST}/api/pull" \
        -H "Content-Type: application/json" \
-       -d "{\"name\":\"${name}\"}"
+       -d "{\"name\":\"${name}\"}" | while read -r line; do
+    echo "$line" | jq -r '.status // empty' 2>/dev/null || echo "$line"
+  done
 }
 
 ensure_model() {
@@ -32,14 +35,17 @@ ensure_model() {
   if ! model_exists "$name"; then
     pull_model "$name"
     sleep 5
-    model_exists "$name" || { echo "❌ Falló la descarga de $name"; return 1; }
+    if ! model_exists "$name"; then
+      echo "❌ Falló la descarga de $name"
+      return 1
+    fi
   fi
   echo "✅ Modelo ${name} listo"
 }
 
 check_docker_daemon() {
 python3 - <<'PY'
-import sys, docker, os
+import sys, docker
 try:
     client = docker.DockerClient(base_url='unix:///var/run/docker.sock')
     client.ping()
@@ -65,62 +71,17 @@ ensure_model "$MODEL" || { echo "⚠️  Probando con llama3.2:1b"; MODEL="llama
 # ---------- 3) Verificar acceso a Docker ----------
 check_docker_daemon
 
-# ---------- 4) Generar wrapper dinámico ----------
-cat >/run_logwhisperer.py <<'PY'
-#!/usr/bin/env python3
-import os, time, subprocess, docker
-from datetime import datetime
+# ---------- 4) Configurar LogWhisperer para usar /reports ----------
+cat > /opt/logwhisperer/config.yaml <<EOF
+ollama:
+  host: ${OLLAMA_HOST}
+  model: ${MODEL}
 
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
-MODEL        = os.getenv("MODEL", "phi3:mini")
-INTERVAL     = int(os.getenv("INTERVAL", "60"))
-CONTAINERS   = [c.strip() for c in os.getenv("CONTAINER_NAMES","moodle-app").split(",")]
+logwhisperer:
+  output_dir: /reports
+  log_level: ${LOG_LEVEL}
+EOF
 
-client = docker.DockerClient(base_url="unix:///var/run/docker.sock")
-
-def running(container_name):
-    try:
-        return client.containers.get(container_name).status == "running"
-    except docker.errors.NotFound:
-        return False
-
-def analyse(container_name):
-    cmd = [
-        "python3", "/opt/logwhisperer/logwhisperer.py",
-        "--source", "docker",
-        "--container", container_name,
-        "--model", MODEL,
-        "--ollama-host", OLLAMA_HOST,
-        "--entries", "100",
-        "--timeout", "30",
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    outfile = f"/reports/summary_{container_name}_{ts}.txt"
-    with open(outfile, "w") as f:
-        f.write(result.stdout)
-        if result.stderr:
-            f.write("\n--- STDERR ---\n")
-            f.write(result.stderr)
-    print(f"📝 {outfile} generado")
-
-def main():
-    print(f"🎯 Monitoreando contenedores: {', '.join(CONTAINERS)} cada {INTERVAL}s")
-    while True:
-        for name in CONTAINERS:
-            if running(name):
-                print(f"📊 Analizando {name} ...")
-                analyse(name)
-            else:
-                print(f"⚠️  {name} no está en ejecución")
-        print(f"💤 Esperando {INTERVAL}s…")
-        time.sleep(INTERVAL)
-
-if __name__ == "__main__":
-    main()
-PY
-
-chmod +x /run_logwhisperer.py
-
+# ---------- 5) Ejecutar wrapper ----------
 echo "✅ Configuración terminada, arrancando LogWhisperer..."
-exec python3 /run_logwhisperer.py
+exec python3 /logwhisperer_wrapper.py
