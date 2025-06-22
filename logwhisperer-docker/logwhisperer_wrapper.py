@@ -1,194 +1,145 @@
 #!/usr/bin/env python3
+"""
+LogWhisperer wrapper:
+- Junta logs de los contenedores indicados
+- Pide a Ollama que los resuma
+- Guarda resultados en /reports
+"""
 import os
 import time
-import subprocess
-import docker
-import json
-import requests
 from datetime import datetime
 from pathlib import Path
 
-# Configuración
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
-MODEL = os.getenv("MODEL", "phi3:mini")
-INTERVAL = int(os.getenv("INTERVAL", "120"))
-ANALYSIS_TIMEOUT = int(os.getenv("ANALYSIS_TIMEOUT", "90"))
-CONTAINERS = [c.strip() for c in os.getenv("CONTAINER_NAMES", "moodle-app").split(",")]
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+import docker
+import requests
 
-# Cliente Docker
+# ─────────────────────────  Configuración  ──────────────────────────
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
+MODEL        = os.getenv("MODEL", "phi3:mini")
+INTERVAL     = int(os.getenv("INTERVAL", "120"))
+ANAL_TIMEOUT = int(os.getenv("ANALYSIS_TIMEOUT", "180"))
+CONTAINERS   = [c.strip() for c in os.getenv("CONTAINER_NAMES", "moodle-app").split(",")]
+LOG_LEVEL    = os.getenv("LOG_LEVEL", "INFO")
+
+# ─────────────────────────  Cliente Docker  ─────────────────────────
 try:
-    client = docker.DockerClient(base_url="unix:///var/run/docker.sock")
-except Exception as e:
-    print(f"❌ Error conectando a Docker: {e}")
+    docker_client = docker.DockerClient(base_url="unix:///var/run/docker.sock")
+    docker_client.ping()
+except Exception as exc:
+    print(f"❌ Error conectando a Docker: {exc}")
     exit(1)
 
-def get_container_status(container_name):
-    """Obtiene el estado de un contenedor"""
+
+# ────────────────────────  Funciones auxiliares ─────────────────────
+def get_container_status(name: str) -> str:
     try:
-        container = client.containers.get(container_name)
-        return container.status
+        return docker_client.containers.get(name).status
     except docker.errors.NotFound:
         return "not_found"
-    except Exception as e:
-        print(f"⚠️  Error obteniendo estado de {container_name}: {e}")
+    except Exception as exc:
+        print(f"⚠️  Estado de {name}: {exc}")
         return "error"
 
-def get_recent_logs(container_name, lines=100):
-    """Obtiene los logs recientes de un contenedor"""
-    try:
-        container = client.containers.get(container_name)
-        logs = container.logs(tail=lines, timestamps=True).decode('utf-8')
-        return logs
-    except Exception as e:
-        return f"Error obteniendo logs: {e}"
 
-def analyze_with_ollama(logs_text, container_name):
-    """Analiza logs directamente con Ollama API"""
+def get_recent_logs(name: str, lines: int = 100) -> str:
     try:
-        prompt = f"""Analiza los siguientes logs del contenedor {container_name} y proporciona un resumen conciso:
+        cont = docker_client.containers.get(name)
+        return cont.logs(tail=lines, timestamps=True).decode("utf-8")
+    except Exception as exc:
+        return f"Error obteniendo logs: {exc}"
 
-1. Identifica los mensajes más importantes
-2. Detecta errores o advertencias críticas
-3. Resume el estado general del servicio
-4. Sugiere acciones si hay problemas
+
+def analyze_with_ollama(text: str, container: str) -> str:
+    """
+    Llama a /api/generate de Ollama **sin** usar la opción errónea max_tokens.
+    Se reemplaza por num_predict, que es el nombre correcto.
+    """
+    prompt = f"""Analiza los siguientes logs del contenedor **{container}** y genera un resumen:
+
+1. Mensajes más relevantes
+2. Errores o advertencias críticas
+3. Estado general del servicio
+4. Acciones recomendadas
+
+Responde en español de forma breve y estructurada.
 
 Logs:
-{logs_text[:4000]}  # Limitar para no sobrecargar el modelo
+{text[:4000]}"""  # se limita para no saturar al modelo
 
-Proporciona un resumen en español, estructurado y claro."""
-
-        # Llamar a Ollama API directamente
-        response = requests.post(
+    try:
+        resp = requests.post(
             f"{OLLAMA_HOST}/api/generate",
             json={
                 "model": MODEL,
                 "prompt": prompt,
                 "stream": False,
                 "options": {
-                    "temperature": 0.5,
-                    "max_tokens": 500
-                }
+                    "temperature": 0.4,
+                    "num_predict": 512   # ⬅️  nombre correcto
+                },
             },
-            timeout=ANALYSIS_TIMEOUT
+            timeout=ANAL_TIMEOUT,
         )
-        
-        if response.status_code == 200:
-            result = response.json()
-            return result.get("response", "No se pudo obtener análisis")
-        else:
-            return f"Error al analizar con Ollama: {response.status_code}"
-            
+        if resp.status_code == 200:
+            return resp.json().get("response", "Respuesta vacía")
+        return f"Error {resp.status_code}: {resp.text}"
     except requests.exceptions.Timeout:
-        return "Timeout al analizar con Ollama"
-    except Exception as e:
-        return f"Error: {str(e)}"
+        return "⏱️ Timeout alcanzado durante la llamada a Ollama"
+    except Exception as exc:
+        return f"❌ Error llamando a Ollama: {exc}"
 
-def analyze_logs(container_name):
-    """Analiza los logs de un contenedor"""
-    print(f"📊 Analizando {container_name}...")
-    
-    # Obtener timestamp para el reporte
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_file = f"/reports/summary_{container_name}_{timestamp}.txt"
-    
-    # Obtener logs
-    logs = get_recent_logs(container_name, lines=100)
-    
-    # Intentar análisis con Ollama
-    analysis = analyze_with_ollama(logs, container_name)
-    
-    # Guardar reporte
-    with open(report_file, 'w') as f:
-        f.write(f"=== Análisis de logs para {container_name} ===\n")
+
+def save_report(container: str, analysis: str, logs: str) -> None:
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    path = Path(f"/reports/summary_{container}_{ts}.txt")
+    with path.open("w") as f:
+        f.write(f"=== Análisis de logs para {container} ===\n")
         f.write(f"Timestamp: {datetime.now().isoformat()}\n")
-        f.write(f"Estado del contenedor: {get_container_status(container_name)}\n")
+        f.write(f"Estado del contenedor: {get_container_status(container)}\n")
         f.write(f"Modelo usado: {MODEL}\n")
         f.write("=" * 50 + "\n\n")
-        
+
         f.write("=== ANÁLISIS ===\n")
-        f.write(analysis)
-        f.write("\n\n")
-        
+        f.write(analysis + "\n\n")
+
         f.write("=== LOGS ORIGINALES (últimas 50 líneas) ===\n")
-        log_lines = logs.split("\n")
-        for line in log_lines[-50:]:
+        for line in logs.splitlines()[-50:]:
             f.write(line + "\n")
-    
-    print(f"✅ Reporte guardado: {report_file}")
+    print(f"✅ Reporte guardado: {path}")
 
-def list_reports():
-    """Lista los reportes generados"""
-    reports_dir = Path("/reports")
-    if reports_dir.exists():
-        reports = sorted(reports_dir.glob("summary_*.txt"))
-        if reports:
-            print(f"\n📁 Reportes generados ({len(reports)}):")
-            for report in reports[-10:]:  # Últimos 10
-                size = report.stat().st_size / 1024  # KB
-                print(f"  - {report.name} ({size:.1f} KB)")
 
-def verify_setup():
-    """Verifica que todo esté configurado correctamente"""
-    print("🔍 Verificando configuración...")
-    
-    # Verificar que config.yaml existe
-    if os.path.exists("/opt/logwhisperer/config.yaml"):
-        print("✅ config.yaml encontrado")
-        with open("/opt/logwhisperer/config.yaml", 'r') as f:
-            print(f"   Contenido: {f.read()}")
-    else:
-        print("⚠️  config.yaml no encontrado, usando valores por defecto")
-    
-    # Verificar conexión a Ollama
-    try:
-        response = requests.get(f"{OLLAMA_HOST}/api/tags", timeout=5)
-        if response.status_code == 200:
-            print("✅ Ollama accesible")
-            models = response.json().get('models', [])
-            print(f"   Modelos disponibles: {[m['name'] for m in models]}")
-        else:
-            print("⚠️  Ollama responde pero con error")
-    except Exception as e:
-        print(f"❌ No se puede conectar a Ollama: {e}")
-    
-    # Verificar directorio de reportes
-    os.makedirs("/reports", exist_ok=True)
-    print("✅ Directorio de reportes creado")
+def list_last_reports() -> None:
+    rep_dir = Path("/reports")
+    if not rep_dir.exists():
+        return
+    reports = sorted(rep_dir.glob("summary_*.txt"))[-10:]
+    if reports:
+        print("\n📁 Últimos reportes:")
+        for rep in reports:
+            print(f"  • {rep.name} ({rep.stat().st_size/1024:.1f} KB)")
 
-def main():
-    print(f"🎯 LogWhisperer Wrapper iniciado")
-    print(f"   - Contenedores: {', '.join(CONTAINERS)}")
-    print(f"   - Intervalo: {INTERVAL}s")
-    print(f"   - Timeout análisis: {ANALYSIS_TIMEOUT}s")
-    print(f"   - Modelo: {MODEL}")
-    print(f"   - Ollama: {OLLAMA_HOST}")
-    
-    # Verificar configuración
-    verify_setup()
-    
-    # Esperar un poco para que todos los servicios estén listos
-    print("\n⏳ Esperando 10 segundos para que los servicios se estabilicen...")
-    time.sleep(10)
-    
-    while True:
-        print(f"\n{'='*60}")
-        print(f"🕐 Ciclo de análisis - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        for container_name in CONTAINERS:
-            status = get_container_status(container_name)
-            
-            if status == "running":
-                analyze_logs(container_name)
-            elif status == "not_found":
-                print(f"⚠️  Contenedor '{container_name}' no encontrado")
-            else:
-                print(f"⚠️  Contenedor '{container_name}' no está corriendo (estado: {status})")
-        
-        list_reports()
-        
-        print(f"\n💤 Esperando {INTERVAL} segundos...")
-        time.sleep(INTERVAL)
 
+# ─────────────────────────────  Main loop  ──────────────────────────
 if __name__ == "__main__":
-    main()
+    print("🎯 LogWhisperer Wrapper iniciado")
+    print(f"   Contenedores: {', '.join(CONTAINERS)}")
+    print(f"   Modelo: {MODEL} / Timeout por request: {ANAL_TIMEOUT}s\n")
+
+    Path("/reports").mkdir(exist_ok=True)
+
+    # Pequeña espera inicial
+    time.sleep(10)
+
+    while True:
+        print(f"\n🕐 {datetime.now():%Y-%m-%d %H:%M:%S} → nuevo ciclo")
+        for cont in CONTAINERS:
+            if get_container_status(cont) == "running":
+                logs = get_recent_logs(cont, 100)
+                result = analyze_with_ollama(logs, cont)
+                save_report(cont, result, logs)
+            else:
+                print(f"⚠️  {cont} no está en estado running")
+
+        list_last_reports()
+        print(f"\n💤 Esperando {INTERVAL}s…")
+        time.sleep(INTERVAL)

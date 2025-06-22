@@ -125,7 +125,7 @@ services:
       - CONTAINER_NAMES=moodle-app,ollama,moodle-db
       - MODEL=phi3:mini
       - INTERVAL=120
-      - ANALYSIS_TIMEOUT=90
+      - ANALYSIS_TIMEOUT=180
     networks:
       - moodle_network
     restart: unless-stopped
