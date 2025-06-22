@@ -52,6 +52,11 @@ services:
       MOODLE_USERNAME: ${MOODLE_USERNAME}
       MOODLE_PASSWORD: ${MOODLE_PASSWORD}
       MOODLE_SITE_NAME: ${MOODLE_SITE_NAME}
+      BITNAMI_DEBUG: "true"          # Traza interna de todos los scripts Bitnami
+      APACHE_HTTPD_LOG_LEVEL: debug  # Apache pasa de notice ⇒ debug
+      MOODLE_DEBUG: "38911"          # Nivel “DEV” (E_ALL | E_STRICT …)
+      MOODLE_DEBUG_DISPLAY: "true"   # Muestra errores PHP en pantalla y en logs
+      PHP_ERROR_REPORTING: "E_ALL"   # PHP registra TODO
     ports:
       - "8080:8080"
       - "8443:8443"
