@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-LogWhisperer wrapper:
-- Junta logs de los contenedores indicados
-- Pide a Ollama que los resuma
-- Guarda resultados en /reports
+LogInsights - Sistema de análisis inteligente de logs con LLM
+- Recolecta logs de contenedores Docker
+- Analiza con modelos de lenguaje usando Ollama
+- Genera reportes estructurados en /reports
 """
 import os
 import time
@@ -51,8 +51,7 @@ def get_recent_logs(name: str, lines: int = 100) -> str:
 
 def analyze_with_ollama(text: str, container: str) -> str:
     """
-    Llama a /api/generate de Ollama **sin** usar la opción errónea max_tokens.
-    Se reemplaza por num_predict, que es el nombre correcto.
+    Llama a /api/generate de Ollama para análisis inteligente de logs
     """
     prompt = f"""Analiza los siguientes logs del contenedor **{container}** y genera un resumen:
 
@@ -75,7 +74,7 @@ Logs:
                 "stream": False,
                 "options": {
                     "temperature": 0.4,
-                    "num_predict": 512   # ⬅️  nombre correcto
+                    "num_predict": 512
                 },
             },
             timeout=ANAL_TIMEOUT,
@@ -93,7 +92,7 @@ def save_report(container: str, analysis: str, logs: str) -> None:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     path = Path(f"/reports/summary_{container}_{ts}.txt")
     with path.open("w") as f:
-        f.write(f"=== Análisis de logs para {container} ===\n")
+        f.write(f"=== LogInsights - Análisis de logs para {container} ===\n")
         f.write(f"Timestamp: {datetime.now().isoformat()}\n")
         f.write(f"Estado del contenedor: {get_container_status(container)}\n")
         f.write(f"Modelo usado: {MODEL}\n")
@@ -121,7 +120,7 @@ def list_last_reports() -> None:
 
 # ─────────────────────────────  Main loop  ──────────────────────────
 if __name__ == "__main__":
-    print("🎯 LogWhisperer Wrapper iniciado")
+    print("🎯 LogInsights - Sistema de análisis inteligente de logs")
     print(f"   Contenedores: {', '.join(CONTAINERS)}")
     print(f"   Modelo: {MODEL} / Timeout por request: {ANAL_TIMEOUT}s\n")
 

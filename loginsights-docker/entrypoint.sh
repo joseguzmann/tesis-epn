@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🚀 Iniciando LogWhisperer..."
+echo "🚀 Iniciando LogInsights..."
 
 : "${OLLAMA_HOST:=http://ollama:11434}"
 : "${MODEL:=phi3:mini}"
@@ -71,17 +71,6 @@ ensure_model "$MODEL" || { echo "⚠️  Probando con llama3.2:1b"; MODEL="llama
 # ---------- 3) Verificar acceso a Docker ----------
 check_docker_daemon
 
-# ---------- 4) Configurar LogWhisperer para usar /reports ----------
-cat > /opt/logwhisperer/config.yaml <<EOF
-ollama:
-  host: ${OLLAMA_HOST}
-  model: ${MODEL}
-
-logwhisperer:
-  output_dir: /reports
-  log_level: ${LOG_LEVEL}
-EOF
-
-# ---------- 5) Ejecutar wrapper ----------
-echo "✅ Configuración terminada, arrancando LogWhisperer..."
-exec python3 /logwhisperer_wrapper.py
+# ---------- 4) Ejecutar LogInsights ----------
+echo "✅ Configuración terminada, arrancando LogInsights..."
+exec python3 /loginsights.py
