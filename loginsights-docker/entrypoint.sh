@@ -4,7 +4,7 @@ set -e
 echo "🚀 Iniciando LogInsights..."
 
 : "${OLLAMA_HOST:=http://ollama:11434}"
-: "${MODEL:=phi3:mini}"
+: "${MODEL:=tinyllama:1.1b}"
 : "${CONTAINER_NAMES:=moodle-app}"
 : "${INTERVAL:=120}"
 : "${ANALYSIS_TIMEOUT:=90}"

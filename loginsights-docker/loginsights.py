@@ -15,7 +15,7 @@ import requests
 
 # ─────────────────────────  Configuración  ──────────────────────────
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
-MODEL        = os.getenv("MODEL", "phi3:mini")
+MODEL        = os.getenv("MODEL", "tinyllama:1.1b")
 INTERVAL     = int(os.getenv("INTERVAL", "120"))
 ANAL_TIMEOUT = int(os.getenv("ANALYSIS_TIMEOUT", "180"))
 CONTAINERS   = [c.strip() for c in os.getenv("CONTAINER_NAMES", "moodle-app").split(",")]

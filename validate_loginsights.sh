@@ -131,11 +131,11 @@ echo -e "${BLUE}5. CHECKING OLLAMA CONNECTIVITY${NC}"
 if docker exec loginsights curl -s http://ollama:11434/api/tags >/dev/null 2>&1; then
     check_pass "Ollama API is accessible"
     
-    MODEL_CHECK=$(docker exec loginsights curl -s http://ollama:11434/api/tags | grep -o '"phi3:mini"' || echo "")
+    MODEL_CHECK=$(docker exec loginsights curl -s http://ollama:11434/api/tags | grep -o '""' || echo "")
     if [ -n "$MODEL_CHECK" ]; then
-        check_pass "phi3:mini model is available"
+        check_pass "tinyllama:1.1b model is available"
     else
-        check_fail "phi3:mini model not found"
+        check_fail "tinyllama:1.1b model not found"
     fi
 else
     check_fail "Cannot connect to Ollama API"

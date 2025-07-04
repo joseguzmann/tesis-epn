@@ -128,7 +128,7 @@ services:
       - OLLAMA_HOST=http://ollama:11434
       - LOG_LEVEL=DEBUG
       - CONTAINER_NAMES=moodle-app,ollama,moodle-db
-      - MODEL=phi3:mini
+      - MODEL=tinyllama:1.1b
       - INTERVAL=120
       - ANALYSIS_TIMEOUT=180
     networks:

@@ -37,7 +37,7 @@ echo
 echo "9. Probando análisis con Ollama directamente:"
 docker exec loginsights curl -s -X POST http://ollama:11434/api/generate \
   -H "Content-Type: application/json" \
-  -d '{"model":"phi3:mini","prompt":"Test: Say hello","stream":false}' | jq -r '.response // "No response"' 2>/dev/null || echo "No se puede conectar a Ollama"
+  -d '{"model":"tinyllama:1.1b","prompt":"Test: Say hello","stream":false}' | jq -r '.response // "No response"' 2>/dev/null || echo "No se puede conectar a Ollama"
 echo
 
 echo "10. Mostrando un reporte reciente completo:"
