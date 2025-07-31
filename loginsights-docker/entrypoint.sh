@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-set -e
+set -e # Si cualquier comando falla, el script se detiene
 
 echo "🚀 Iniciando LogInsights..."
 
+# Variables de entorno con valores por defecto si no están definidas
 : "${OLLAMA_HOST:=http://ollama:11434}"
 : "${MODEL:=tinyllama:1.1b}"
 : "${CONTAINER_NAMES:=moodle-app}"
@@ -13,13 +14,17 @@ MAX_RETRIES=30
 COUNT=0
 
 # ---------- Funciones auxiliares ----------
+
+# Verifica si Ollama esta accesible con un simple request
 check_ollama() { curl -s -f "${OLLAMA_HOST}/api/tags" >/dev/null 2>&1; }
 
+# Verifica si un modelo existe en Ollama
 model_exists() {
   local name="$1"
   curl -s "${OLLAMA_HOST}/api/tags" | jq -r '.models[].name' | grep -q "^${name}$"
 }
 
+# Descarga un modelo de Ollama si no existe
 pull_model() {
   local name="$1"
   echo "📦 Descargando modelo ${name}..."
@@ -30,6 +35,7 @@ pull_model() {
   done
 }
 
+# Asegura que el modelo esté disponible, descargándolo si es necesario
 ensure_model() {
   local name="$1"
   if ! model_exists "$name"; then
@@ -43,6 +49,7 @@ ensure_model() {
   echo "✅ Modelo ${name} listo"
 }
 
+# Verifica si el daemon de Docker es accesible desde el contenedor
 check_docker_daemon() {
 python3 - <<'PY'
 import sys, docker
@@ -56,6 +63,7 @@ except Exception as e:
 PY
 }
 
+# Empiezan los procesos del entrypoint
 # ---------- 1) Esperar Ollama ----------
 echo "⏳ Esperando a Ollama..."
 until check_ollama || [ "$COUNT" -eq "$MAX_RETRIES" ]; do

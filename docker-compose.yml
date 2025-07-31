@@ -54,7 +54,7 @@ services:
       MOODLE_SITE_NAME: ${MOODLE_SITE_NAME}
       BITNAMI_DEBUG: "true"          # Traza interna de todos los scripts Bitnami
       APACHE_HTTPD_LOG_LEVEL: debug  # Apache pasa de notice ⇒ debug
-      MOODLE_DEBUG: "38911"          # Nivel "DEV" (E_ALL | E_STRICT …)
+      MOODLE_DEBUG: "38911"          # Nivel de depuracion (E_ALL | E_STRICT …)
       MOODLE_DEBUG_DISPLAY: "true"   # Muestra errores PHP en pantalla y en logs
       PHP_ERROR_REPORTING: "E_ALL"   # PHP registra TODO
     ports:
@@ -77,11 +77,11 @@ services:
     image: netdata/netdata:stable
     container_name: netdata
     network_mode: host
-    pid: host
-    cap_add: [SYS_PTRACE]
-    security_opt: [apparmor:unconfined]
+    pid: host # Comparte la red con el host
+    cap_add: [SYS_PTRACE] # Permite ptrace para trazar procesos (observar, inspeccionar y controlar)
+    security_opt: [apparmor:unconfined] # Desactiva AppArmor para Netdata, lo que permite un acceso más amplio a los recursos del sistema. Deshabilita las restricciones de seguridad de AppArmor para este contenedor, lo que puede ser necesario para ciertas funcionalidades de Netdata.
     environment:
-      - NETDATA_ML=yes
+      - NETDATA_ML=yes # Habilita el uso de ML
     volumes:
       - netdata_lib:/var/lib/netdata
       - netdata_cache:/var/cache/netdata
@@ -90,11 +90,11 @@ services:
       - /sys:/host/sys:ro
     restart: unless-stopped
 
-  # 4) Ollama (servidor LLM local)
+  # 4) Ollama (servidor LLM local). Runtime de modelos. Descargar
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
-    command: ["serve"]
+    command: ["serve"] # Ejecutar el comando serve cuando arranque
     ports:
       - "11434:11434"
     volumes:

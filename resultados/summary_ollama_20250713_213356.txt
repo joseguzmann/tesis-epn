@@ -1,0 +1,60 @@
+=== LogInsights - Análisis de logs para ollama ===
+Timestamp: 2025-07-13T21:33:56.783487
+Estado del contenedor: running
+Modelo usado: tinyllama:1.1b
+==================================================
+
+=== ANÁLISIS ===
+The "truncating input prompt" error message occurs when the GIN middleware is unable to find a valid input prompt for the user, leading to the error message displayed in the logs. The error can occur due to various reasons, such as missing or invalid prompts, incorrect formatting, or the middleware not being initialized correctly. To fix this issue, ensure that the GIN middleware is properly configured and initialized with a valid input prompt. Additionally, make sure that the user's input is formatted correctly using appropriate syntax and spacing. If the issue persists, try restarting the server or re-running the command with additional logging options to capture more detailed error messages.
+
+=== LOGS ORIGINALES (últimas 50 líneas) ===
+2025-07-13T21:04:48.762637142Z time=2025-07-13T21:04:48.762Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=3443 keep=5 new=2048
+2025-07-13T21:05:14.068475534Z [GIN] 2025/07/13 - 21:05:14 | 200 | 25.320918627s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:05:14.110894833Z time=2025-07-13T21:05:14.110Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2867 keep=5 new=2048
+2025-07-13T21:05:48.622403587Z [GIN] 2025/07/13 - 21:05:48 | 200 | 34.539113978s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:05:48.645543226Z time=2025-07-13T21:05:48.644Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2654 keep=5 new=2048
+2025-07-13T21:06:15.199654564Z [GIN] 2025/07/13 - 21:06:15 | 200 | 26.569229084s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:08:15.294947247Z time=2025-07-13T21:08:15.294Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=3443 keep=5 new=2048
+2025-07-13T21:08:52.056587065Z [GIN] 2025/07/13 - 21:08:52 | 200 | 36.774847406s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:08:52.080441333Z time=2025-07-13T21:08:52.080Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2866 keep=5 new=2048
+2025-07-13T21:09:29.058392046Z [GIN] 2025/07/13 - 21:09:29 | 200 | 36.991792491s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:09:29.079845126Z time=2025-07-13T21:09:29.079Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2654 keep=5 new=2048
+2025-07-13T21:10:04.864227874Z [GIN] 2025/07/13 - 21:10:04 | 200 | 35.798185305s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:12:04.958956447Z time=2025-07-13T21:12:04.958Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=3443 keep=5 new=2048
+2025-07-13T21:12:31.924439142Z [GIN] 2025/07/13 - 21:12:31 | 200 | 26.979527602s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:12:31.952527367Z time=2025-07-13T21:12:31.952Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2864 keep=5 new=2048
+2025-07-13T21:12:56.973488890Z [GIN] 2025/07/13 - 21:12:56 | 200 | 25.039603266s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:12:56.996857718Z time=2025-07-13T21:12:56.996Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2654 keep=5 new=2048
+2025-07-13T21:13:31.218616974Z [GIN] 2025/07/13 - 21:13:31 | 200 |  34.23771122s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:15:31.299908377Z time=2025-07-13T21:15:31.299Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=3443 keep=5 new=2048
+2025-07-13T21:15:55.207475303Z [GIN] 2025/07/13 - 21:15:55 | 200 | 23.922047793s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:15:55.228392244Z time=2025-07-13T21:15:55.228Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2864 keep=5 new=2048
+2025-07-13T21:16:19.600936464Z [GIN] 2025/07/13 - 21:16:19 | 200 | 24.385872177s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:16:19.622336484Z time=2025-07-13T21:16:19.622Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2654 keep=5 new=2048
+2025-07-13T21:16:56.796964706Z [GIN] 2025/07/13 - 21:16:56 | 200 |  37.18838749s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:18:56.891838878Z time=2025-07-13T21:18:56.891Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=3443 keep=5 new=2048
+2025-07-13T21:19:23.746934048Z [GIN] 2025/07/13 - 21:19:23 | 200 | 26.870609466s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:19:23.770758727Z time=2025-07-13T21:19:23.770Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2864 keep=5 new=2048
+2025-07-13T21:19:49.213253364Z [GIN] 2025/07/13 - 21:19:49 | 200 | 25.459323002s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:19:49.235427894Z time=2025-07-13T21:19:49.235Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2654 keep=5 new=2048
+2025-07-13T21:20:19.980349985Z [GIN] 2025/07/13 - 21:20:19 | 200 |  30.75871265s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:22:20.094244476Z time=2025-07-13T21:22:20.093Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=3443 keep=5 new=2048
+2025-07-13T21:22:51.828636156Z [GIN] 2025/07/13 - 21:22:51 | 200 | 31.749292378s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:22:51.851152636Z time=2025-07-13T21:22:51.850Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2864 keep=5 new=2048
+2025-07-13T21:23:24.154052163Z [GIN] 2025/07/13 - 21:23:24 | 200 | 32.316001585s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:23:24.174821450Z time=2025-07-13T21:23:24.174Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2654 keep=5 new=2048
+2025-07-13T21:23:55.238371587Z [GIN] 2025/07/13 - 21:23:55 | 200 | 31.076839575s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:25:55.343941020Z time=2025-07-13T21:25:55.342Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2814 keep=5 new=2048
+2025-07-13T21:26:34.398215648Z [GIN] 2025/07/13 - 21:26:34 | 200 | 39.074295309s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:26:34.423318963Z time=2025-07-13T21:26:34.423Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2866 keep=5 new=2048
+2025-07-13T21:27:05.070953189Z [GIN] 2025/07/13 - 21:27:05 | 200 | 30.661986118s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:27:05.096783985Z time=2025-07-13T21:27:05.096Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2654 keep=5 new=2048
+2025-07-13T21:27:42.468532774Z [GIN] 2025/07/13 - 21:27:42 | 200 | 37.387707407s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:29:42.563878613Z time=2025-07-13T21:29:42.563Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2814 keep=5 new=2048
+2025-07-13T21:30:10.176393663Z [GIN] 2025/07/13 - 21:30:10 | 200 | 27.627345852s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:30:10.205495597Z time=2025-07-13T21:30:10.205Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2869 keep=5 new=2048
+2025-07-13T21:30:35.386841870Z [GIN] 2025/07/13 - 21:30:35 | 200 |  25.20028438s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:30:35.409520642Z time=2025-07-13T21:30:35.409Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2654 keep=5 new=2048
+2025-07-13T21:31:05.687063809Z [GIN] 2025/07/13 - 21:31:05 | 200 |  30.29137031s |      172.18.0.3 | POST     "/api/generate"
+2025-07-13T21:33:05.788053802Z time=2025-07-13T21:33:05.787Z level=WARN source=runner.go:128 msg="truncating input prompt" limit=2048 prompt=2859 keep=5 new=2048
+2025-07-13T21:33:30.809459535Z [GIN] 2025/07/13 - 21:33:30 | 200 | 25.037621743s |      172.18.0.3 | POST     "/api/generate"

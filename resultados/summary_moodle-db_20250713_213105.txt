@@ -1,0 +1,74 @@
+=== LogInsights - Análisis de logs para moodle-db ===
+Timestamp: 2025-07-13T21:31:05.687912
+Estado del contenedor: running
+Modelo usado: tinyllama:1.1b
+==================================================
+
+=== ANÁLISIS ===
+To enable the use of the InnoDB buffer pool for log files, set the innodb_log_group_home_dir option to a directory that is writable by the root user. This will allow InnoDB to create and manage the log files automatically. The following command can be used to modify the configuration file:
+
+```
+sudo nano /etc/mysql/my.cnf
+```
+
+Find the line that starts with `innodb_log_group_home_dir`. Edit it by replacing `/var/lib/mysql` with the writable directory path you just set:
+
+```
+[mysqld]
+...
+innodb_log_group_home_dir = /path/to/writable/directory
+```
+
+Save and close the file. Restart MySQL for the changes to take effect.
+
+=== LOGS ORIGINALES (últimas 50 líneas) ===
+2025-07-05T02:17:38.970733942Z 2025-07-05  2:17:38 0 [Note] InnoDB: innodb_buffer_pool_size_max=256m, innodb_buffer_pool_size=256m
+2025-07-05T02:17:38.978216156Z 2025-07-05  2:17:38 0 [Note] InnoDB: Completed initialization of buffer pool
+2025-07-05T02:17:38.984916485Z 2025-07-05  2:17:38 0 [Note] InnoDB: File system buffers for log disabled (block size=512 bytes)
+2025-07-05T02:17:39.147994848Z 2025-07-05  2:17:39 0 [Note] InnoDB: Starting crash recovery from checkpoint LSN=72982454
+2025-07-05T02:17:39.832050207Z 2025-07-05  2:17:39 0 [Note] InnoDB: End of log at LSN=114782877
+2025-07-05T02:17:39.952787563Z 2025-07-05  2:17:39 0 [Note] InnoDB: To recover: 767 pages
+2025-07-05T02:17:39.994255806Z 2025-07-05  2:17:39 0 [Note] InnoDB: 128 rollback segments are active.
+2025-07-05T02:17:39.997366884Z 2025-07-05  2:17:39 0 [Note] InnoDB: Removed temporary tablespace data file: "./ibtmp1"
+2025-07-05T02:17:39.997410744Z 2025-07-05  2:17:39 0 [Note] InnoDB: Setting file './ibtmp1' size to 12.000MiB. Physically writing the file full; Please wait ...
+2025-07-05T02:17:39.997418754Z 2025-07-05  2:17:39 0 [Note] InnoDB: File './ibtmp1' size is now 12.000MiB.
+2025-07-05T02:17:39.997881597Z 2025-07-05  2:17:39 0 [Note] InnoDB: log sequence number 114782877; transaction id 232747
+2025-07-05T02:17:39.998537631Z 2025-07-05  2:17:39 0 [Note] Plugin 'FEEDBACK' is disabled.
+2025-07-05T02:17:39.998565580Z 2025-07-05  2:17:39 0 [Note] InnoDB: Loading buffer pool(s) from /var/lib/mysql/ib_buffer_pool
+2025-07-05T02:17:40.000739853Z 2025-07-05  2:17:40 0 [Warning] You need to use --log-bin to make --expire-logs-days or --binlog-expire-logs-seconds work.
+2025-07-05T02:17:40.001524058Z 2025-07-05  2:17:40 0 [Note] InnoDB: Buffer pool(s) load completed at 250705  2:17:40
+2025-07-05T02:17:40.006356866Z 2025-07-05  2:17:40 0 [Note] Server socket created on IP: '0.0.0.0'.
+2025-07-05T02:17:40.006384816Z 2025-07-05  2:17:40 0 [Note] Server socket created on IP: '::'.
+2025-07-05T02:17:40.033348154Z 2025-07-05  2:17:40 0 [Note] mariadbd: ready for connections.
+2025-07-05T02:17:40.033374834Z Version: '10.11.13-MariaDB-ubu2204'  socket: '/run/mysqld/mysqld.sock'  port: 3306  mariadb.org binary distribution
+2025-07-05T02:18:19.111421612Z 2025-07-05 02:18:19+00:00 [Note] [Entrypoint]: Entrypoint script for MariaDB Server 1:10.11.13+maria~ubu2204 started.
+2025-07-05T02:18:19.491294253Z 2025-07-05 02:18:19+00:00 [Warn] [Entrypoint]: /sys/fs/cgroup///memory.pressure not writable, functionality unavailable to MariaDB
+2025-07-05T02:18:19.494178580Z 2025-07-05 02:18:19+00:00 [Note] [Entrypoint]: Switching to dedicated user 'mysql'
+2025-07-05T02:18:19.514740850Z 2025-07-05 02:18:19+00:00 [Note] [Entrypoint]: Entrypoint script for MariaDB Server 1:10.11.13+maria~ubu2204 started.
+2025-07-05T02:18:19.767456617Z 2025-07-05 02:18:19+00:00 [Note] [Entrypoint]: MariaDB upgrade not required
+2025-07-05T02:18:19.793967683Z 2025-07-05  2:18:19 0 [Note] Starting MariaDB 10.11.13-MariaDB-ubu2204 source revision 8fb09426b98583916ccfd4f8c49741adc115bac3 server_uid Dm/atSq/sXnBdZc5zCys59WK4ck= as process 1
+2025-07-05T02:18:19.821235592Z 2025-07-05  2:18:19 0 [Note] InnoDB: Compressed tables use zlib 1.2.11
+2025-07-05T02:18:19.824163419Z 2025-07-05  2:18:19 0 [Note] InnoDB: Number of transaction pools: 1
+2025-07-05T02:18:19.824181869Z 2025-07-05  2:18:19 0 [Note] InnoDB: Using AVX512 instructions
+2025-07-05T02:18:19.824230210Z 2025-07-05  2:18:19 0 [Note] mariadbd: O_TMPFILE is not supported on /tmp (disabling future attempts)
+2025-07-05T02:18:19.825733308Z 2025-07-05  2:18:19 0 [Warning] mariadbd: io_uring_queue_init() failed with EPERM: sysctl kernel.io_uring_disabled has the value 2, or 1 and the user of the process is not a member of sysctl kernel.io_uring_group. (see man 2 io_uring_setup).
+2025-07-05T02:18:19.827105316Z 2025-07-05  2:18:19 0 [Warning] InnoDB: liburing disabled: falling back to innodb_use_native_aio=OFF
+2025-07-05T02:18:19.827637619Z 2025-07-05  2:18:19 0 [Note] InnoDB: innodb_buffer_pool_size_max=256m, innodb_buffer_pool_size=256m
+2025-07-05T02:18:19.828964787Z 2025-07-05  2:18:19 0 [Note] InnoDB: Completed initialization of buffer pool
+2025-07-05T02:18:19.830506186Z 2025-07-05  2:18:19 0 [Note] InnoDB: File system buffers for log disabled (block size=512 bytes)
+2025-07-05T02:18:19.878505707Z 2025-07-05  2:18:19 0 [Note] InnoDB: Starting crash recovery from checkpoint LSN=72982454
+2025-07-05T02:18:20.861444413Z 2025-07-05  2:18:20 0 [Note] InnoDB: End of log at LSN=114783605
+2025-07-05T02:18:20.971855759Z 2025-07-05  2:18:20 0 [Note] InnoDB: To recover: 765 pages
+2025-07-05T02:18:21.003814125Z 2025-07-05  2:18:21 0 [Note] InnoDB: 128 rollback segments are active.
+2025-07-05T02:18:21.006949844Z 2025-07-05  2:18:21 0 [Note] InnoDB: Removed temporary tablespace data file: "./ibtmp1"
+2025-07-05T02:18:21.006998994Z 2025-07-05  2:18:21 0 [Note] InnoDB: Setting file './ibtmp1' size to 12.000MiB. Physically writing the file full; Please wait ...
+2025-07-05T02:18:21.007042564Z 2025-07-05  2:18:21 0 [Note] InnoDB: File './ibtmp1' size is now 12.000MiB.
+2025-07-05T02:18:21.007469636Z 2025-07-05  2:18:21 0 [Note] InnoDB: log sequence number 114783605; transaction id 232758
+2025-07-05T02:18:21.007798969Z 2025-07-05  2:18:21 0 [Note] Plugin 'FEEDBACK' is disabled.
+2025-07-05T02:18:21.007901679Z 2025-07-05  2:18:21 0 [Note] InnoDB: Loading buffer pool(s) from /var/lib/mysql/ib_buffer_pool
+2025-07-05T02:18:21.009354788Z 2025-07-05  2:18:21 0 [Warning] You need to use --log-bin to make --expire-logs-days or --binlog-expire-logs-seconds work.
+2025-07-05T02:18:21.010284303Z 2025-07-05  2:18:21 0 [Note] InnoDB: Buffer pool(s) load completed at 250705  2:18:21
+2025-07-05T02:18:21.012143344Z 2025-07-05  2:18:21 0 [Note] Server socket created on IP: '0.0.0.0'.
+2025-07-05T02:18:21.012168604Z 2025-07-05  2:18:21 0 [Note] Server socket created on IP: '::'.
+2025-07-05T02:18:21.032058330Z 2025-07-05  2:18:21 0 [Note] mariadbd: ready for connections.
+2025-07-05T02:18:21.032123401Z Version: '10.11.13-MariaDB-ubu2204'  socket: '/run/mysqld/mysqld.sock'  port: 3306  mariadb.org binary distribution
